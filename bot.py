@@ -1,13 +1,32 @@
 import logging
+from threading import Thread
+from flask import Flask
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from database import ExhibitionsDB
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Включаем логирование
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 # Инициализируем базу данных
 db = ExhibitionsDB('exhibitions.db')
+
+# --- Flask приложение для health check (чтобы Koyeb не убивал бота) ---
+flask_app = Flask('')
+
+@flask_app.route('/')
+def health_check():
+    return "I'm alive!", 200
+
+def run_webserver():
+    """Запускает Flask-сервер на порту 8080 в отдельном потоке"""
+    flask_app.run(host='0.0.0.0', port=8080, debug=False)
+
+# --- Все обработчики команд бота (start, help, ping, exhibitions и т.д.) ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -107,8 +126,17 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Вы написали: {update.message.text}")
 
 def main():
-    # Замените 'YOUR_TOKEN' на реальный токен
-    application = Application.builder().token("YOUR_TOKEN").build()
+    # Запускаем веб-сервер для health check в отдельном потоке
+    web_thread = Thread(target=run_webserver, daemon=True)
+    web_thread.start()
+    
+    # Инициализируем приложение бота
+
+    token = os.getenv('BOT_TOKEN')
+    if not token:
+        raise ValueError("BOT_TOKEN не найден в переменных окружения. Проверьте файл .env")
+    
+    application = Application.builder().token(token).build()  # Замените на ваш реальный токен
     
     # Регистрируем команды
     application.add_handler(CommandHandler("start", start))
@@ -119,6 +147,7 @@ def main():
     application.add_handler(CommandHandler("rusmuseum", rusmuseum))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     
+    # Запускаем бота (этот вызов блокирует выполнение, пока бот работает)
     application.run_polling()
 
 if __name__ == '__main__':
