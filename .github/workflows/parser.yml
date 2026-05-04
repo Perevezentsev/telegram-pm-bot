@@ -1,5 +1,11 @@
 name: Ежедневный парсинг выставок
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
 on:
   schedule:
     # Запуск каждый день в 9:00 UTC (12:00 Москва)
