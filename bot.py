@@ -68,6 +68,36 @@ async def exhibitions(update, context):
     
     await update.message.reply_text(text, parse_mode="Markdown")
 
+# Добавьте эту функцию перед main()
+async def check_db(update, context):
+    """Диагностическая команда для проверки БД"""
+    import os
+    from database import get_all_exhibitions, init_db
+    
+    # Проверяем, существует ли файл БД
+    db_exists = os.path.exists('exhibitions.db')
+    
+    # Пытаемся получить данные
+    rows = get_all_exhibitions()
+    
+    message = f"""
+📊 *Диагностика БД:*
+
+Файл exhibitions.db: {'✅ существует' if db_exists else '❌ не найден'}
+Количество записей: {len(rows)}
+
+*Первые 3 записи (если есть):*
+"""
+    for i, row in enumerate(rows[:3]):
+        title, location, date_start, date_end, desc, url = row
+        message += f"\n{i+1}. {title} — {location} ({date_start}–{date_end})"
+    
+    if not rows:
+        message += "\n\n⚠️ База данных пуста. Нужно добавить выставки через парсер или вручную."
+    
+    await update.message.reply_text(message, parse_mode="Markdown")
+
+
 def main():
     application = Application.builder().token(TOKEN).build()
     
@@ -75,6 +105,7 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("ping", ping))
     application.add_handler(CommandHandler("exhibitions", exhibitions))
+    application.add_handler(CommandHandler("check_db", check_db))
     
     logging.info("🚀 Бот запущен с SQLite")
     application.run_polling()
