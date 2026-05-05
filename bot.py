@@ -36,38 +36,7 @@ async def help_command(update, context):
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
 async def ping(update, context):
-    """Диагностика вместо ping"""
-    import os
-    from database import get_all_exhibitions
-    
-    # Проверяем файл БД
-    db_path = 'exhibitions.db'
-    db_exists = os.path.exists(db_path)
-    
-    # Пробуем получить данные
-    try:
-        rows = get_all_exhibitions()
-        rows_count = len(rows)
-    except Exception as e:
-        rows_count = f"Ошибка: {e}"
-    
-    # Список зарегистрированных команд
-    commands_list = [cmd for cmd in context.application.handlers.get(0, [])]
-    
-    message = f"""
-📊 *Диагностика*
-
-БД файл: {'✅ есть' if db_exists else '❌ нет'}
-Записей в БД: {rows_count}
-Зарегистрировано команд: {len(commands_list)}
-
-*Текущие команды:*
-"""
-    for handler in commands_list:
-        if hasattr(handler, 'commands'):
-            message += f"- /{handler.commands[0]}\n"
-    
-    await update.message.reply_text(message, parse_mode="Markdown")
+    await update.message.reply_text("pong!")
 
 async def exhibitions(update, context):
     """Показывает выставки из базы данных"""
