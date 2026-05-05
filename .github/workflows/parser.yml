@@ -1,41 +1,35 @@
-name: Ежедневный парсинг выставок
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
-permissions:
-  contents: write
+name: Парсер выставок Эрмитажа
 
 on:
   schedule:
-    # Запуск каждый день в 9:00 UTC (12:00 Москва)
-    - cron: '0 9 * * *'
-  workflow_dispatch:  # Позволяет запускать вручную из веб-интерфейса
+    # Запуск каждый день в 9:00
+    - cron: '0 8 * * *'
+  workflow_dispatch:  # Запуск вручную из интерфейса GitHub
 
 jobs:
   parse:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Клонируем репозиторий
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-    - name: Устанавливаем Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        
-    - name: Устанавливаем зависимости
-      run: |
-        pip install beautifulsoup4 requests
-        
-    - name: Запускаем парсер
-      run: python parser.py
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       
-    - name: Коммитим обновленную базу данных
-      run: |
-        git config user.name "GitHub Actions Bot"
-        git config user.email "actions@github.com"
-        git add exhibitions.db
-        git diff --quiet && git diff --staged --quiet || git commit -m "Автоматическое обновление базы выставок $(date '+%Y-%m-%d')"
-        git push
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4
+      
+      - name: Run parser
+        run: python parser.py
+      
+      - name: Commit and push database changes
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add exhibitions.db
+          git diff --quiet && git diff --staged --quiet || git commit -m "🔄 Автоматическое обновление выставок $(date '+%Y-%m-%d %H:%M:%S')"
+          git push
