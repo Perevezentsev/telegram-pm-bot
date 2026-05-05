@@ -87,7 +87,7 @@ async def check(update, context):
     db_exists = os.path.exists(db_path)
     db_size = os.path.getsize(db_path) if db_exists else 0
     
-    message = f"📊 *Диагностика*\n\n"
+    message = f"📊 Диагностика\n\n"
     message += f"Файл БД: {'✅ есть' if db_exists else '❌ нет'}\n"
     message += f"Размер БД: {db_size} байт\n\n"
     
@@ -97,7 +97,8 @@ async def check(update, context):
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = cursor.fetchall()
-            message += f"Таблицы: {', '.join([t[0] for t in tables])}\n\n"
+            if tables:
+                message += f"Таблицы: {', '.join([t[0] for t in tables])}\n\n"
             
             cursor.execute("SELECT COUNT(*) FROM exhibitions")
             count = cursor.fetchone()[0]
@@ -106,14 +107,14 @@ async def check(update, context):
             if count > 0:
                 cursor.execute("SELECT title, location, date_start FROM exhibitions LIMIT 3")
                 sample = cursor.fetchall()
-                message += "*Примеры:*\n"
+                message += "Примеры:\n"
                 for row in sample:
                     message += f"• {row[0]}\n  📍 {row[1]}\n  📅 {row[2]}\n\n"
             conn.close()
         except Exception as e:
             message += f"❌ Ошибка при чтении БД: {e}"
     
-    await update.message.reply_text(message, parse_mode="Markdown")
+    await update.message.reply_text(message)
 
 
 def main():
