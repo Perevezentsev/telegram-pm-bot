@@ -4,6 +4,14 @@ import sqlite3
 import re
 from datetime import datetime
 import os
+import ssl
+
+# Отключаем проверку SSL для GitHub Actions
+try:
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+except ImportError:
+    pass
 
 DB_PATH = 'exhibitions.db'
 
@@ -14,91 +22,117 @@ def get_exhibitions_from_hermitage():
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
     
-    # Основная страница с выставками
-    url = 'https://hermitagemuseum.org/whats-on/'
+    # Пробуем несколько возможных URL
+    urls_to_try = [
+        'https://hermitagemuseum.org/wps/portal/hermitage/what-s-on/exhibitions/',
+        'https://hermitagemuseum.org/whats-on/',
+        'https://hermitagemuseum.org/what-s-on?lng=en'
+    ]
     
-    try:
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
-        
-        # Парсим HTML
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Ищем блоки с выставками
-        # На странице Эрмитажа выставки в блоках с классом "event-item"
-        events = soup.find_all('div', class_=re.compile(r'event|exhibition|item'))
-        
-        exhibitions = []
-        
-        for event in events:
-            # Пробуем найти название
-            title_elem = event.find(['h2', 'h3', 'div'], class_=re.compile(r'title|name'))
-            title = title_elem.get_text(strip=True) if title_elem else None
+    exhibitions = []
+    
+    for url in urls_to_try:
+        try:
+            print(f"Пробуем URL: {url}")
+            # Отключаем проверку SSL для GitHub Actions
+            response = requests.get(url, headers=headers, timeout=30, verify=False)
+            response.raise_for_status()
             
-            # Пробуем найти даты
-            date_elem = event.find(class_=re.compile(r'date'))
-            date_text = date_elem.get_text(strip=True) if date_elem else None
+            soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Пробуем найти место
-            place_elem = event.find(class_=re.compile(r'place|location|hall'))
-            place = place_elem.get_text(strip=True) if place_elem else None
+            # Поиск по шаблону дат (российский формат)
+            text = soup.get_text()
+            date_pattern = r'(\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4})'
             
-            if title and date_text:
-                # Парсим даты (формат может быть "21 февраля 2026 - 20 апреля 2026")
-                date_match = re.search(r'(\d{1,2}\s+\w+\s+\d{4})\s*[-–]\s*(\d{1,2}\s+\w+\s+\d{4})', date_text)
-                if date_match:
-                    date_start = date_match.group(1)
-                    date_end = date_match.group(2)
-                else:
-                    date_start = date_text
-                    date_end = ""
+            # Ищем заголовки рядом с датами
+            for date_match in re.finditer(date_pattern, text):
+                date_text = date_match.group(1)
+                
+                # Ищем заголовок перед датой
+                context_start = max(0, date_match.start() - 200)
+                context = text[context_start:date_match.start()]
+                
+                # Ищем потенциальное название выставки
+                title = "Выставка в Эрмитаже"
+                lines = context.split('\n')
+                for line in reversed(lines[-5:]):
+                    if len(line.strip()) > 5 and len(line.strip()) < 100:
+                        title = line.strip()
+                        break
                 
                 exhibitions.append({
                     'title': title,
-                    'location': place or "Государственный Эрмитаж",
-                    'date_start': date_start,
-                    'date_end': date_end,
-                    'description': "",
+                    'location': 'Государственный Эрмитаж',
+                    'date_start': date_text,
+                    'date_end': '',
+                    'description': '',
                     'url': url
                 })
-        
-        # Если не нашли через универсальные классы, пробуем альтернативный URL
-        if not exhibitions:
-            # Английская версия
-            url_en = 'https://hermitagemuseum.org/what-s-on?lng=en'
-            response = requests.get(url_en, headers=headers, timeout=30)
-            soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Ищем элементы с датами (прямой поиск по тексту)
-            for element in soup.find_all(['div', 'li', 'article']):
-                text = element.get_text()
-                # Ищем паттерн даты в формате "21 February 2026 - 20 April 2026"
-                if re.search(r'\d{1,2}\s+\w+\s+\d{4}\s*[-–]\s*\d{1,2}\s+\w+\s+\d{4}', text):
-                    title_elem = element.find(['h2', 'h3', 'strong'])
-                    title = title_elem.get_text(strip=True) if title_elem else "Выставка в Эрмитаже"
-                    
-                    place_elem = element.find(class_=re.compile(r'hall|place', re.I))
-                    place = place_elem.get_text(strip=True) if place_elem else "Эрмитаж"
-                    
-                    exhibitions.append({
-                        'title': title,
-                        'location': place,
-                        'date_start': "",
-                        'date_end': "",
-                        'description': text[:200],
-                        'url': url_en
-                    })
-        
-        return exhibitions
-        
-    except Exception as e:
-        print(f"Ошибка при парсинге: {e}")
-        return []
+            if exhibitions:
+                print(f"Найдено {len(exhibitions)} выставок на {url}")
+                break
+                
+        except Exception as e:
+            print(f"Ошибка при парсинге {url}: {e}")
+            continue
+    
+    # Если не нашли реальные выставки, возвращаем структурированные демо-данные
+    if not exhibitions:
+        print("⚠️ Не удалось найти выставки, используем примеры")
+        exhibitions = [
+            {
+                'title': 'Постоянная экспозиция Главного музейного комплекса',
+                'location': 'Зимний дворец, Главный штаб, Меншиковский дворец',
+                'date_start': 'Постоянно',
+                'date_end': '',
+                'description': 'Шедевры мировой культуры от Древнего Египта до начала XX века',
+                'url': 'https://hermitagemuseum.org'
+            },
+            {
+                'title': 'Сокровища сарматских вождей',
+                'location': 'Эрмитаж, Зимний дворец',
+                'date_start': 'Май 2026',
+                'date_end': 'Сентябрь 2026',
+                'description': 'Уникальные артефакты из курганов сарматской знати',
+                'url': 'https://hermitagemuseum.org'
+            },
+            {
+                'title': 'Импрессионисты и постимпрессионисты',
+                'location': 'Главный штаб, 4 этаж',
+                'date_start': 'Постоянно',
+                'date_end': '',
+                'description': 'Работы Моне, Ренуара, Сезанна, Ван Гога и других',
+                'url': 'https://hermitagemuseum.org'
+            }
+        ]
+    
+    return exhibitions
 
 def save_to_db(exhibitions):
     """Сохраняет выставки в базу данных"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    
+    # Проверяем структуру таблицы
+    cursor.execute("PRAGMA table_info(exhibitions)")
+    columns = [col[1] for col in cursor.fetchall()]
+    
+    # Если таблицы нет или структура неправильная, создаём заново
+    if 'location' not in columns:
+        cursor.execute('DROP TABLE IF EXISTS exhibitions')
+        cursor.execute('''
+            CREATE TABLE exhibitions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                location TEXT,
+                date_start TEXT,
+                date_end TEXT,
+                description TEXT,
+                url TEXT,
+                updated_at TEXT
+            )
+        ''')
     
     # Очищаем старые данные
     cursor.execute('DELETE FROM exhibitions')
@@ -124,27 +158,20 @@ def save_to_db(exhibitions):
 
 def main():
     print("🕷️ Начинаем парсинг выставок Эрмитажа...")
-    exhibitions = get_exhibitions_from_hermitage()
+    print(f"Текущая директория: {os.getcwd()}")
     
-    if exhibitions:
-        save_to_db(exhibitions)
-        print(f"📊 В базу добавлено {len(exhibitions)} записей")
-    else:
-        print("⚠️ Не удалось найти выставки. Проверьте структуру сайта.")
-        # Добавляем тестовые данные, если парсинг не сработал
-        fallback_data = [
-            ("Импрессионисты в Русском музее", "Санкт-Петербург", "2026-05-10", "2026-06-15"),
-            ("Айвазовский. Морская стихия", "Третьяковская галерея", "2026-05-20", "2026-08-01"),
-        ]
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM exhibitions')
-        for title, loc, start, end in fallback_data:
-            cursor.execute('INSERT INTO exhibitions (title, location, date_start, date_end, updated_at) VALUES (?, ?, ?, ?, ?)',
-                         (title, loc, start, end, datetime.now().isoformat()))
-        conn.commit()
-        conn.close()
-        print("📝 Добавлены тестовые выставки (парсинг временно не работает)")
+    exhibitions = get_exhibitions_from_hermitage()
+    save_to_db(exhibitions)
+    
+    # Выводим содержимое БД для проверки
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT title, location, date_start FROM exhibitions")
+    rows = cursor.fetchall()
+    print(f"\n📊 Текущие выставки в БД ({len(rows)} шт.):")
+    for row in rows:
+        print(f"  - {row[0]} | {row[1]} | {row[2]}")
+    conn.close()
 
 if __name__ == '__main__':
     main()

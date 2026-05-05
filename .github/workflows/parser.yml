@@ -2,9 +2,8 @@ name: Парсер выставок Эрмитажа
 
 on:
   schedule:
-    # Запуск каждый день в 9:00
-    - cron: '0 8 * * *'
-  workflow_dispatch:  # Запуск вручную из интерфейса GitHub
+    - cron: '0 9 * * *'
+  workflow_dispatch:
 
 jobs:
   parse:
@@ -21,7 +20,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install requests beautifulsoup4
+          pip install requests beautifulsoup4 urllib3
+          pip install --upgrade certifi
       
       - name: Run parser
         run: python parser.py
@@ -31,5 +31,11 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           git add exhibitions.db
-          git diff --quiet && git diff --staged --quiet || git commit -m "🔄 Автоматическое обновление выставок $(date '+%Y-%m-%d %H:%M:%S')"
-          git push
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🔄 Обновление выставок $(date '+%Y-%m-%d %H:%M:%S')"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
