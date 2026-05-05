@@ -1,9 +1,8 @@
 import os
 import logging
 from telegram.ext import Application, CommandHandler
-from database import init_db, get_all_exhibitions
+from database import init_db, get_all_exhibitions, add_exhibition, clear_exhibitions
 
-# Настройки
 logging.basicConfig(level=logging.INFO)
 TOKEN = os.getenv('BOT_TOKEN')
 
@@ -15,88 +14,55 @@ if not TOKEN:
 init_db()
 
 async def start(update, context):
-    await update.message.reply_text(
-        "👋 Привет! Я бот для поиска выставок.\n"
-        "Используй /help чтобы увидеть все команды."
-    )
+    await update.message.reply_text("👋 Привет! Я бот для поиска выставок.\nИспользуй /help")
 
 async def help_command(update, context):
     help_text = """
-📋 *Доступные команды:*
-
+📋 *Команды:*
 /start — Запустить бота
-/help — Показать эту справку
-/ping — Проверить, работает ли бот
-/exhibitions — Показать список выставок
-
-🔧 *В разработке:*
-/artists — Поиск по художникам
-/museums — Выставки по музеям
+/help — Эта справка
+/ping — Проверка работы
+/exhibitions — Список выставок
+/add_mock — Добавить тестовые выставки (для отладки)
+/clear_mock — Очистить все выставки
 """
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
 async def ping(update, context):
-    await update.message.reply_text("pong!")
+    await update.message.reply_text("🏓 pong!")
 
 async def exhibitions(update, context):
-    """Показывает выставки из базы данных"""
     rows = get_all_exhibitions()
-    
     if not rows:
-        await update.message.reply_text(
-            "📭 Пока нет активных выставок.\n"
-            "Скоро появятся, загляните позже!"
-        )
+        await update.message.reply_text("📭 Пока нет активных выставок.")
         return
     
-    # Формируем красивое сообщение
-    text = "🎨 *Актуальные выставки:*\n\n"
-    for row in rows:
+    text = "🎨 *Выставки:*\n\n"
+    for row in rows[:10]:
         title, location, date_start, date_end, desc, url = row
-        text += f"*{title}*\n"
-        text += f"📍 {location}\n"
-        text += f"📅 {date_start} — {date_end}\n"
-        if desc:
-            text += f"📝 {desc[:100]}...\n"
-        if url:
-            text += f"🔗 [Подробнее]({url})\n"
-        text += "\n"
-    
-    # Telegram имеет лимит на длину сообщения
-    if len(text) > 4000:
-        text = text[:4000] + "...\n\n_Слишком много выставок, сократил список_"
+        text += f"*{title}*\n📍 {location}\n📅 {date_start} – {date_end}\n\n"
     
     await update.message.reply_text(text, parse_mode="Markdown")
 
-# Добавьте эту функцию перед main()
-async def check_db(update, context):
-    """Диагностическая команда для проверки БД"""
-    import os
-    from database import get_all_exhibitions, init_db
+async def add_mock(update, context):
+    """Добавляет тестовые выставки"""
+    clear_exhibitions()
     
-    # Проверяем, существует ли файл БД
-    db_exists = os.path.exists('exhibitions.db')
+    test_data = [
+        ("Импрессионисты в Русском музее", "Санкт-Петербург", "2026-05-10", "2026-06-15", "Великие импрессионисты: Моне, Ренуар, Дега", ""),
+        ("Айвазовский. Морская стихия", "Третьяковская галерея", "2026-05-20", "2026-08-01", "Более 50 работ великого мариниста", ""),
+        ("Современное искусство Китая", "ММОМА", "2026-05-01", "2026-07-20", "Выставка современных китайских художников", ""),
+    ]
     
-    # Пытаемся получить данные
-    rows = get_all_exhibitions()
+    for title, location, date_start, date_end, desc, url in test_data:
+        add_exhibition(title, location, date_start, date_end, desc, url)
     
-    message = f"""
-📊 *Диагностика БД:*
+    await update.message.reply_text(f"✅ Добавлено {len(test_data)} тестовых выставок!\nОтправь /exhibitions чтобы увидеть.")
 
-Файл exhibitions.db: {'✅ существует' if db_exists else '❌ не найден'}
-Количество записей: {len(rows)}
-
-*Первые 3 записи (если есть):*
-"""
-    for i, row in enumerate(rows[:3]):
-        title, location, date_start, date_end, desc, url = row
-        message += f"\n{i+1}. {title} — {location} ({date_start}–{date_end})"
-    
-    if not rows:
-        message += "\n\n⚠️ База данных пуста. Нужно добавить выставки через парсер или вручную."
-    
-    await update.message.reply_text(message, parse_mode="Markdown")
-
+async def clear_mock(update, context):
+    """Очищает все выставки"""
+    clear_exhibitions()
+    await update.message.reply_text("🗑️ Все выставки удалены из базы.")
 
 def main():
     application = Application.builder().token(TOKEN).build()
@@ -105,9 +71,10 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("ping", ping))
     application.add_handler(CommandHandler("exhibitions", exhibitions))
-    application.add_handler(CommandHandler("check_db", check_db))
+    application.add_handler(CommandHandler("add_mock", add_mock))
+    application.add_handler(CommandHandler("clear_mock", clear_mock))
     
-    logging.info("🚀 Бот запущен с SQLite")
+    logging.info("🚀 Бот запущен")
     application.run_polling()
 
 if __name__ == '__main__':

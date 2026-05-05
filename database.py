@@ -5,11 +5,16 @@ from datetime import datetime
 DB_PATH = 'exhibitions.db'
 
 def init_db():
-    """Создаёт таблицу, если её нет"""
+    """Создаёт таблицу с правильной структурой"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    
+    # Удаляем старую таблицу, если есть (чтобы избавиться от несоответствия колонок)
+    cursor.execute('DROP TABLE IF EXISTS exhibitions')
+    
+    # Создаём новую с правильными колонками
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS exhibitions (
+        CREATE TABLE exhibitions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             location TEXT,
@@ -20,9 +25,10 @@ def init_db():
             updated_at TEXT
         )
     ''')
+    
     conn.commit()
     conn.close()
-    print("📁 База данных инициализирована")
+    print("✅ База данных пересоздана с правильной структурой")
 
 def get_all_exhibitions():
     """Возвращает список всех выставок"""
@@ -34,7 +40,7 @@ def get_all_exhibitions():
     return rows
 
 def add_exhibition(title, location, date_start, date_end, description='', url=''):
-    """Добавляет новую выставку (для парсера)"""
+    """Добавляет новую выставку"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
@@ -45,7 +51,7 @@ def add_exhibition(title, location, date_start, date_end, description='', url=''
     conn.close()
 
 def clear_exhibitions():
-    """Очищает таблицу (для обновления данных)"""
+    """Очищает таблицу"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM exhibitions')
