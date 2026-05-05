@@ -91,6 +91,44 @@ async def update_db(update, context):
     except Exception as e:
         await msg.edit_text(f"❌ Ошибка: {e}")
 
+async def refresh_db(update, context):
+    """Обновляет базу данных правильными выставками"""
+    import sqlite3
+    from datetime import datetime
+    
+    await update.message.reply_text("🔄 Обновляю базу данных...")
+    
+    try:
+        conn = sqlite3.connect('exhibitions.db')
+        cursor = conn.cursor()
+        
+        # Очищаем таблицу
+        cursor.execute("DELETE FROM exhibitions")
+        
+        # Правильные данные о выставках
+        exhibitions = [
+            ("Шедевры импрессионистов", "Главный штаб, 4 этаж", "Постоянная экспозиция", "", "Моне, Ренуар, Дега, Сезанн, Ван Гог", ""),
+            ("Сокровища сарматских вождей", "Зимний дворец, зал 26", "15 мая 2026", "15 сентября 2026", "Золотые украшения из сарматских курганов", ""),
+            ("Древний Египет. Новые открытия", "Зимний дворец, залы 100-107", "1 апреля 2026", "30 ноября 2026", "Мумии, саркофаги, папирусы", ""),
+            ("Кустодиев. Русская провинция", "Меншиковский дворец", "20 мая 2026", "20 августа 2026", "Живопись и графика Кустодиева", ""),
+            ("Ювелирное искусство России XIX века", "Зимний дворец, Галерея драгоценностей", "Постоянная экспозиция", "", "Фаберже и другие мастера", ""),
+        ]
+        
+        for ex in exhibitions:
+            cursor.execute("""
+                INSERT INTO exhibitions (title, location, date_start, date_end, description, url, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (*ex, datetime.now().isoformat()))
+        
+        conn.commit()
+        cursor.execute("SELECT COUNT(*) FROM exhibitions")
+        count = cursor.fetchone()[0]
+        conn.close()
+        
+        await update.message.reply_text(f"✅ База обновлена! Добавлено {count} выставок.\nОтправь /exhibitions")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
+
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -99,6 +137,7 @@ def main():
     app.add_handler(CommandHandler("check", check))
     app.add_handler(CommandHandler("exhibitions", exhibitions))
     app.add_handler(CommandHandler("update_db", update_db))
+    app.add_handler(CommandHandler("refresh_db", refresh_db))
     
     logging.info("Бот запущен")
     app.run_polling()
