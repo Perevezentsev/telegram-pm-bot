@@ -68,6 +68,29 @@ async def exhibitions(update, context):
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
+async def update_db(update, context):
+    """Принудительное обновление базы данных из Git"""
+    import subprocess
+    import sqlite3
+    from datetime import datetime
+    
+    msg = await update.message.reply_text("🔄 Обновляю базу данных...")
+    
+    try:
+        # Тянем последнюю версию из Git
+        subprocess.run(['git', 'pull', 'origin', 'master'], capture_output=True, text=True)
+        
+        # Переподключаемся к БД
+        conn = sqlite3.connect('exhibitions.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM exhibitions")
+        count = cursor.fetchone()[0]
+        conn.close()
+        
+        await msg.edit_text(f"✅ База обновлена! В ней {count} выставок.\nОтправь /exhibitions")
+    except Exception as e:
+        await msg.edit_text(f"❌ Ошибка: {e}")
+
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -75,6 +98,7 @@ def main():
     app.add_handler(CommandHandler("ping", ping))
     app.add_handler(CommandHandler("check", check))
     app.add_handler(CommandHandler("exhibitions", exhibitions))
+    app.add_handler(CommandHandler("update_db", update_db))
     
     logging.info("Бот запущен")
     app.run_polling()
