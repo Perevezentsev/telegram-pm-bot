@@ -77,6 +77,45 @@ async def clear_mock(update, context):
         logger.error(f"Ошибка в clear_mock: {e}")
         await update.message.reply_text(f"❌ Ошибка при очистке: {e}")
 
+
+async def check(update, context):
+    """Диагностика базы данных"""
+    import os
+    import sqlite3
+    
+    db_path = 'exhibitions.db'
+    db_exists = os.path.exists(db_path)
+    db_size = os.path.getsize(db_path) if db_exists else 0
+    
+    message = f"📊 *Диагностика*\n\n"
+    message += f"Файл БД: {'✅ есть' if db_exists else '❌ нет'}\n"
+    message += f"Размер БД: {db_size} байт\n\n"
+    
+    if db_exists:
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = cursor.fetchall()
+            message += f"Таблицы: {', '.join([t[0] for t in tables])}\n\n"
+            
+            cursor.execute("SELECT COUNT(*) FROM exhibitions")
+            count = cursor.fetchone()[0]
+            message += f"Записей в exhibitions: {count}\n\n"
+            
+            if count > 0:
+                cursor.execute("SELECT title, location, date_start FROM exhibitions LIMIT 3")
+                sample = cursor.fetchall()
+                message += "*Примеры:*\n"
+                for row in sample:
+                    message += f"• {row[0]}\n  📍 {row[1]}\n  📅 {row[2]}\n\n"
+            conn.close()
+        except Exception as e:
+            message += f"❌ Ошибка при чтении БД: {e}"
+    
+    await update.message.reply_text(message, parse_mode="Markdown")
+
+
 def main():
     app = Application.builder().token(TOKEN).build()
     
@@ -86,6 +125,7 @@ def main():
     app.add_handler(CommandHandler("exhibitions", exhibitions))
     app.add_handler(CommandHandler("add_mock", add_mock))
     app.add_handler(CommandHandler("clear_mock", clear_mock))
+    app.add_handler(CommandHandler("check", check))
     
     logger.info("🚀 Бот запущен. Зарегистрированные команды: start, help, ping, exhibitions, add_mock, clear_mock")
     app.run_polling()
