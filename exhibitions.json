@@ -1,0 +1,51 @@
+{
+  "updated_at": "2026-05-06",
+  "source": "Государственный Эрмитаж — https://hermitagemuseum.org/what-s-on",
+  "exhibitions": [
+    {
+      "title": "К барьеру! Поединки и дуэли от Ахилла до Лифаря",
+      "location": "Зимний дворец, зал 175 (Гербовый зал)",
+      "date_start": "апрель 2026",
+      "date_end": "август 2026",
+      "status": "current",
+      "description": "Выставка посвящена феномену поединка в культуре — от Античности до XX века. Оружие, костюмы, живопись, документы.",
+      "url": "https://hermitagemuseum.org/wps/portal/hermitage/what-s-on/exhibitions/"
+    },
+    {
+      "title": "Мода ар-деко из собрания Государственного Эрмитажа и коллекции Назима Мустафаева",
+      "location": "Главный штаб, атриум",
+      "date_start": "март 2026",
+      "date_end": "сентябрь 2026",
+      "status": "current",
+      "description": "Костюмы и аксессуары эпохи ар-деко 1920–30-х годов. Haute couture Парижа, Лондона и Нью-Йорка.",
+      "url": "https://hermitagemuseum.org/wps/portal/hermitage/what-s-on/exhibitions/"
+    },
+    {
+      "title": "Импрессионисты и постимпрессионисты",
+      "location": "Главный штаб, 3–4 этаж",
+      "date_start": "",
+      "date_end": "",
+      "status": "permanent",
+      "description": "Крупнейшее в России собрание: Моне, Ренуар, Дега, Сезанн, Ван Гог, Гоген, Матисс, Пикассо.",
+      "url": "https://hermitagemuseum.org/wps/portal/hermitage/explore/buildings/locations/generalstaff/"
+    },
+    {
+      "title": "Золотая кладовая",
+      "location": "Зимний дворец, нижний этаж",
+      "date_start": "",
+      "date_end": "",
+      "status": "permanent",
+      "description": "Украшения из золота и драгоценных камней с древнейших времён до наших дней. Посещение только с экскурсией.",
+      "url": "https://hermitagemuseum.org/wps/portal/hermitage/visitus/main-museum-complex/treasure-gallery/"
+    },
+    {
+      "title": "Рыцарский зал",
+      "location": "Зимний дворец, зал 243",
+      "date_start": "",
+      "date_end": "",
+      "status": "permanent",
+      "description": "Западноевропейское рыцарское вооружение XV–XVII веков. Парадные доспехи, турнирное снаряжение.",
+      "url": "https://hermitagemuseum.org/wps/portal/hermitage/explore/artworks/"
+    }
+  ]
+}

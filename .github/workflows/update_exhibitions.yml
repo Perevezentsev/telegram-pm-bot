@@ -1,0 +1,65 @@
+name: Update exhibitions
+
+on:
+  # Запускается каждый понедельник в 9:00 UTC (12:00 МСК)
+  schedule:
+    - cron: '0 9 * * 1'
+
+  # Запуск вручную из интерфейса GitHub (Actions → Run workflow)
+  workflow_dispatch:
+
+  # Запуск при пуше в master (чтобы Actions не засыпал)
+  push:
+    branches:
+      - master
+
+jobs:
+  parse-and-update:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # нужно для git push
+
+    steps:
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Установка Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Установка зависимостей
+        run: |
+          pip install playwright requests beautifulsoup4
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Запуск парсера
+        run: python parser.py
+
+      - name: Проверить изменения
+        id: check_changes
+        run: |
+          git diff --quiet exhibitions.json || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Сохранить обновлённые выставки в git
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add exhibitions.json
+          git commit -m "🎨 Обновление выставок $(date +'%Y-%m-%d')"
+          git push
+
+      - name: Нет изменений
+        if: steps.check_changes.outputs.changed != 'true'
+        run: echo "Выставки не изменились, пуш не нужен"
+
+      - name: Перезапуск бота на bothost.ru
+        if: always()
+        run: |
+          curl -s "${{ secrets.BOTHOST_WEBHOOK_URL }}"
+          echo "Сигнал перезапуска отправлен"
