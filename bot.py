@@ -103,6 +103,19 @@ async def refresh_db(update, context):
         cursor = conn.cursor()
         
         # Очищаем таблицу
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS exhibitions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                location TEXT,
+                date_start TEXT,
+                date_end TEXT,
+                description TEXT,
+                url TEXT,
+                updated_at TEXT
+            )
+        """)        
+
         cursor.execute("DELETE FROM exhibitions")
         
         # Правильные данные о выставках
