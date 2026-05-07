@@ -1,9 +1,9 @@
-name: Парсер выставок Эрмитажа
+name: Парсер выставок
 
 on:
   schedule:
-    - cron: '0 9 * * *'
-  workflow_dispatch:
+    - cron: '0 6 * * *'  # каждый день в 9:00 МСК
+  workflow_dispatch:       # запуск вручную из GitHub
 
 permissions:
   contents: write
@@ -11,34 +11,32 @@ permissions:
 jobs:
   parse:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Setup Python
+
+      - name: Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
-      - name: Install dependencies
-        run: |
-          pip install requests beautifulsoup4 urllib3
-      
-      - name: Run parser
+
+      - name: Зависимости
+        run: pip install requests beautifulsoup4
+
+      - name: Запуск парсера
         run: python parser.py
-      
-      - name: Commit and push database changes
+
+      - name: Пуш базы в репо
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add exhibitions.db
           if git diff --cached --quiet; then
-            echo "✅ Нет изменений в базе данных"
+            echo "Изменений нет"
           else
-            git commit -m "🔄 Автообновление выставок $(date '+%Y-%m-%d %H:%M:%S')"
-            git push origin HEAD:${{ github.ref_name }}
-            echo "✅ База данных обновлена и запущена"
+            git commit -m "🔄 Обновление выставок $(date '+%Y-%m-%d')"
+            git push origin master
           fi
