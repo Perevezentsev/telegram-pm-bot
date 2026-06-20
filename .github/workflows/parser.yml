@@ -3,7 +3,7 @@ name: Парсер выставок
 on:
   schedule:
     - cron: '0 6 * * *'  # каждый день в 9:00 МСК
-  workflow_dispatch:       # запуск вручную из GitHub
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -40,3 +40,6 @@ jobs:
             git commit -m "🔄 Обновление выставок $(date '+%Y-%m-%d')"
             git push origin master
           fi
+
+      - name: Перезапуск бота на bothost
+        run: curl -s "${{ secrets.BOTHOST_WEBHOOK_URL }}"
